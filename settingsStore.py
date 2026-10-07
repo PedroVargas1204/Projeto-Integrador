@@ -15,10 +15,12 @@ DEFAULTS = {
     "unlocked_1972": False,
     "tried_themes": [],
     "manual_parts": {},
+    "achievements": {},
 }
 
 THEMES = ("mallard", "pekin", "femea", "cinzento", "cayuga", "patinho")
 MANUAL_PARTS = ("gpu", "mb")
+ACHIEVEMENTS = ("cisne", "ninho")
 
 
 def _config_path():
@@ -45,6 +47,10 @@ def _clean(data):
             key: str(value).strip()[:120]
             for key, value in data["manual_parts"].items()
             if key in MANUAL_PARTS and str(value).strip()
+        }
+    if isinstance(data.get("achievements"), dict):
+        settings["achievements"] = {
+            key: True for key, value in data["achievements"].items() if key in ACHIEVEMENTS and value is True
         }
     if settings["theme"] == "patinho" and not settings["unlocked_1972"]:
         settings["theme"] = "mallard"

@@ -1,5 +1,10 @@
 /* Ícones (traço) e as ilustrações do pato usadas na interface. */
 const ICONS = {
+  "pad": "<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"5\"></rect><path d=\"M6.5 12h4M8.5 10v4M15 11h.01M18 13h.01\"></path>",
+  "case": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"></rect><path d=\"M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18\"></path>",
+  "home": "<path d=\"M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z\"></path>",
+  "trash": "<path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3\"></path>",
+  "printer": "<path d=\"M6 9V3h12v6\"></path><rect x=\"3\" y=\"9\" width=\"18\" height=\"8\" rx=\"1.5\"></rect><path d=\"M7 14h10v7H7z\"></path>",
   "monitor": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"></rect><path d=\"M8 20h8M12 16v4\"></path>",
   "activity": "<path d=\"M3 12h4l3-7 4 14 3-7h4\"></path>",
   "spark": "<path d=\"M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z\"></path><path d=\"M19 15l.7 1.8 1.8.7-1.8.7L19 20l-.7-1.8-1.8-.7 1.8-.7z\"></path>",
@@ -84,14 +89,38 @@ function duckMini(w = 40, h = 30, c = null) {
   </svg>`;
 }
 
-function duckling(w = 44, h = 36) {
+/* Patinho. "lit" = colorido; sem cor fica só o contorno (usado no passo a passo do Consultor). */
+function duckling(w = 44, h = 36, lit = true) {
+  const fill = lit ? "#F5CF4F" : "transparent", stroke = lit ? "#B8922A" : "var(--line2)";
+  const beak = lit ? "#F08A24" : "var(--line2)", eye = lit ? "#2A2017" : "var(--line2)";
   return `<svg width="${w}" height="${h}" viewBox="0 0 44 36" aria-hidden="true" style="display:block">
-    <path d="M8 21 L2 16 L6 26 Z" fill="#F5CF4F" stroke="#B8922A" stroke-width="1.6" stroke-linejoin="round"/>
-    <ellipse cx="20" cy="24" rx="13" ry="9" fill="#F5CF4F" stroke="#B8922A" stroke-width="1.6"/>
-    <circle cx="31" cy="13" r="8" fill="#F5CF4F" stroke="#B8922A" stroke-width="1.6"/>
-    <path d="M38 11.5 L43.5 13.8 L38 16.2 Z" fill="#F08A24"/>
-    <circle cx="33.2" cy="11" r="1.4" fill="#2A2017"/>
-    <path d="M14 23 Q20 18.5 26 23.5" fill="none" stroke="#B8922A" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M8 21 L2 16 L6 26 Z" fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round"/>
+    <ellipse cx="20" cy="24" rx="13" ry="9" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>
+    <circle cx="31" cy="13" r="8" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>
+    <path d="M38 11.5 L43.5 13.8 L38 16.2 Z" fill="${beak}"/>
+    <circle cx="33.2" cy="11" r="1.4" fill="${eye}"/>
+    <path d="M14 23 Q20 18.5 26 23.5" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* O cisne que aparece quando todos os upgrades foram feitos. */
+function swanSymbol(size = 40, radius = 10) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="display:block;flex-shrink:0">
+    <rect width="64" height="64" rx="${radius * 64 / size}" fill="var(--l-tile)"/>
+    <path d="M10 58 C14 50 22 47 29 50 C37 45 50 47 56 58 Z" fill="#FFFFFF"/>
+    <path d="M26 52 C17 43 30 38 33 30 C36 22 27 19 29 13" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linecap="round"/>
+    <circle cx="32" cy="12" r="6.5" fill="#FFFFFF"/>
+    <path d="M37.5 10.4 L50 14.2 L37.5 16.9 Z" fill="#F28A2E"/>
+    <path d="M36.4 9.6 L39.2 10.6 L39 16.5 L36.2 16.9 Z" fill="#1C1B18"/>
+    <rect x="30.8" y="9.4" width="3" height="3" rx="0.5" fill="#1C1B18"/>
+  </svg>`;
+}
+
+/* Pegada palmada, usada na trilha do Histórico. */
+function footprint(size = 26) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" style="display:block">
+    <path d="M12 22c-2.2 0-6.9-4.6-8.2-11.6-.2-1 .8-1.6 1.6-1 1.3 1 2.6 1.4 3.6.8C9.6 6.3 10.6 2.5 12 2.5s2.4 3.8 3 7.7c1 .6 2.3.2 3.6-.8.8-.6 1.8 0 1.6 1C18.9 17.4 14.2 22 12 22z" fill="currentColor"/>
+    <path d="M12 20.5V7M12 19.5L6.2 11.2M12 19.5l5.8-8.3" fill="none" stroke="var(--bg)" stroke-width="1.3" stroke-linecap="round"/>
   </svg>`;
 }
 

@@ -174,3 +174,23 @@ a:hover { color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+@keyframes dive { 0%, 12% { transform: translateY(0) rotate(0); } 28% { transform: translateY(8px) rotate(-26deg); } 42%, 58% { transform: translateY(70px) rotate(-62deg); } 74% { transform: translateY(6px) rotate(-8deg); } 88%, 100% { transform: translateY(0) rotate(0); } }
+.dive { animation: dive 2.6s cubic-bezier(.45,0,.3,1) infinite; }
+
+/* Menu de exportar e acordeão das recomendações */
+.menu { position: absolute; right: 0; top: 52px; z-index: 5; min-width: 260px; background: var(--s2); border: 1px solid var(--line2); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 12px 28px -12px rgba(0,0,0,.5); }
+.menu button { min-height: 44px; padding: 6px 12px; border: 0; border-radius: 4px; background: transparent; color: var(--text); text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.menu button:hover { background: var(--s3); }
+.rec-head { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 18px 20px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.rec-chev { display: flex; color: var(--text2); transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+.rec-head[aria-expanded="true"] .rec-chev { transform: rotate(180deg); }
+
+/* Impressão do relatório: só o conteúdo, em fundo claro. */
+@media print {
+  html, body { height: auto; overflow: visible; background: #FFFFFF !important; }
+  .sidebar, .toast-root, .no-print { display: none !important; }
+  .shell, .content { display: block; height: auto; overflow: visible; padding: 0; background: #FFFFFF !important; }
+  .panel { break-inside: avoid; }
+  * { animation: none !important; transition: none !important; }
+}

@@ -22,6 +22,8 @@
         <button type="button" class="nav-btn" data-page="computer" data-icon="monitor">Meu computador</button>
         <button type="button" class="nav-btn" data-page="guide" data-icon="book">Entenda seu PC</button>
         <button type="button" class="nav-btn" data-page="monitor" data-icon="activity">Monitoramento</button>
+        <button type="button" class="nav-btn" data-page="advisor" data-icon="spark">Consultor</button>
+        <button type="button" class="nav-btn" data-page="history" data-icon="clock">Histórico</button>
       </div>
       <div class="sidebar-bottom">
         <div class="stack">
@@ -31,6 +33,7 @@
         <button type="button" class="settings-link" data-page="settings" id="settings-link">
           <span class="row" style="gap:8px;font-size:14px;font-weight:600" id="settings-link-label">Configurações</span>
           <span class="faint" style="font-size:13px" id="device-label">Lendo o computador…</span>
+          <span class="row" style="gap:8px;font-size:13px" id="ai-label"><span id="ai-dot" style="width:7px;height:7px;border-radius:50%;background:var(--warn)"></span><span id="ai-text" style="color:var(--warn)">IA: chave não informada</span></span>
         </button>
         <span class="version" id="version-label">Mallard</span>
       </div>
@@ -39,6 +42,11 @@
       <section class="page" id="page-computer" aria-label="Meu computador"></section>
       <section class="page" id="page-guide" aria-label="Entenda seu PC"></section>
       <section class="page" id="page-monitor" aria-label="Monitoramento"></section>
+      <section class="page" id="page-advisor" aria-label="Consultor de upgrades"></section>
+      <section class="page" id="page-analyzing" aria-label="Analisando"></section>
+      <section class="page" id="page-result" aria-label="Resultado da análise"></section>
+      <section class="page" id="page-error" aria-label="Não deu para analisar"></section>
+      <section class="page" id="page-history" aria-label="Histórico"></section>
       <section class="page" id="page-settings" aria-label="Configurações"></section>
     </main>
   </div>
@@ -51,6 +59,11 @@
   <script src="js/pages/computer.js"></script>
   <script src="js/pages/guide.js"></script>
   <script src="js/pages/monitor.js"></script>
+  <script src="js/pages/advisor.js"></script>
+  <script src="js/pages/analyzing.js"></script>
+  <script src="js/pages/result.js"></script>
+  <script src="js/pages/error.js"></script>
+  <script src="js/pages/history.js"></script>
   <script src="js/pages/settings.js"></script>
   <script>App.start();</script>
 </body>

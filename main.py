@@ -20,7 +20,7 @@ def ensure_dependencies():
     packages = {
         "pywebview": "webview",
         "psutil": "psutil",
-        "google-generativeai": "google.generativeai",
+        "google-genai": "google.genai",
         "nvidia-ml-py": "pynvml",
     }
     if platform.system() == "Windows":
@@ -64,10 +64,13 @@ if not getattr(sys, "frozen", False):
 import psutil
 import webview
 
+import aiAnalysis
+import analysisHistory
 import hardwareGuide
 import hardwareInfo
 import hardwareMonitoring
 import pcHealth
+import reportExport
 import settingsStore
 
 APP_NAME = "Mallard"
@@ -90,6 +93,9 @@ class MallardApi:
         self._hardware = None
         self._hardware_lock = threading.Lock()
         self._settings = settingsStore.loadSettings()
+        # A chave do Gemini fica só na memória: nunca é salva em disco.
+        self._api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        self._window = None
 
     # ------------------------------------------------------------------
     # Leitura do hardware
@@ -188,6 +194,84 @@ class MallardApi:
         }
 
     # ------------------------------------------------------------------
+    # Consultor de upgrades (IA)
+    # ------------------------------------------------------------------
+    def get_ai_status(self):
+        key = self._api_key
+        return {
+            "has_key": bool(key),
+            "masked": f"{key[:4]}…{key[-4:]}" if len(key) > 10 else "",
+            "from_env": bool(key) and key == os.environ.get("GEMINI_API_KEY", "").strip(),
+        }
+
+    def set_api_key(self, key):
+        self._api_key = str(key or "").strip()
+        return self.get_ai_status()
+
+    def forget_api_key(self):
+        self._api_key = ""
+        return self.get_ai_status()
+
+    def _hardware_for_ai(self):
+        hardware = self._current_hardware()
+        ignored = {"pontos_de_atencao", "discos", "lido_em", "nivel"}
+        data = {key: value for key, value in hardware.items() if key not in ignored}
+        data["nivel_estimado_por_regras"] = (hardware.get("nivel") or {}).get("name")
+        return data
+
+    def run_analysis(self, perfil, preferencias):
+        """Pede o diagnóstico ao Gemini e salva no histórico.
+
+        Devolve {"ok": True, "entry": ..., "first": bool} ou
+        {"ok": False, "error": código, "message": texto}.
+        """
+        first = not analysisHistory.loadHistory()
+        try:
+            result = aiAnalysis.consultar_gemini(self._api_key, self._hardware_for_ai(), perfil, preferencias or {})
+        except aiAnalysis.AnalysisError as error:
+            if error.code == "chave_invalida":
+                self._api_key = ""  # chave recusada: pede outra em vez de insistir
+            return {"ok": False, "error": error.code, "message": error.message}
+        entry = analysisHistory.addAnalysis(perfil, preferencias or {}, self._current_hardware(), result)
+        return {"ok": True, "entry": entry, "first": first}
+
+    def get_history(self):
+        return analysisHistory.loadHistory()
+
+    def get_analysis(self, entry_id):
+        return analysisHistory.getAnalysis(entry_id)
+
+    def set_upgrade_done(self, entry_id, index, done):
+        """Marca um upgrade como feito. Quando todos estiverem feitos, o PC "vira cisne"."""
+        entry = analysisHistory.setUpgradeDone(entry_id, int(index), bool(done))
+        if not entry:
+            return {"entry": None, "swan": False}
+        all_done = bool(entry["feitos"]) and all(entry["feitos"])
+        first_swan = all_done and not self._settings.get("achievements", {}).get("cisne")
+        if first_swan:
+            achievements = dict(self._settings.get("achievements", {}))
+            achievements["cisne"] = True
+            self._settings = settingsStore.saveSettings({"achievements": achievements})
+        return {"entry": entry, "swan": all_done, "first_swan": first_swan}
+
+    def delete_analysis(self, entry_id):
+        return analysisHistory.deleteAnalysis(entry_id)
+
+    def export_report(self, entry_id):
+        """Salva o relatório em HTML (abre no navegador e dá para imprimir como PDF)."""
+        entry = analysisHistory.getAnalysis(entry_id)
+        if not entry or not self._window:
+            return {"ok": False}
+        name = "mallard-relatorio-" + entry["data"][:10] + ".html"
+        chosen = self._window.create_file_dialog(webview.SAVE_DIALOG, save_filename=name, file_types=("Página HTML (*.html)",))
+        if not chosen:
+            return {"ok": False, "cancelled": True}
+        path = chosen if isinstance(chosen, str) else chosen[0]
+        with open(path, "w", encoding="utf-8") as file:
+            file.write(reportExport.buildReportHtml(entry))
+        return {"ok": True, "path": path}
+
+    # ------------------------------------------------------------------
     # Preferências e utilidades
     # ------------------------------------------------------------------
     def get_app_info(self):
@@ -215,7 +299,7 @@ class MallardApi:
 
 def run_app():
     api = MallardApi()
-    webview.create_window(
+    api._window = webview.create_window(
         APP_NAME,
         resource_path("ui", "index.html"),
         js_api=api,

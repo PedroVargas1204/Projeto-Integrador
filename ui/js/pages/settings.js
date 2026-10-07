@@ -30,13 +30,26 @@ App.register("settings", (() => {
       return;
     }
     const info = App.state.info || { version: "2.0", os: "" };
-    root().innerHTML = pageHeader("AJUSTES", "Configurações", "Seu pato e a forma como o Mallard se mexe.") + `
+    const ai = App.state.ai || { has_key: false };
+    root().innerHTML = pageHeader("AJUSTES", "Configurações", "Seu pato, a chave da IA e a forma como o Mallard se mexe.") + `
       <section class="panel pad in" style="animation-delay:60ms;display:flex;flex-direction:column;gap:18px">
         <div class="stack" style="gap:4px"><h2 class="section-title">Escolha seu pato</h2>
           <span class="muted" style="font-size:14px">Cada tema usa as cores de uma plumagem. A escolha vale para o app inteiro.</span></div>
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr))">${App.availableThemes().map((t) => duckCard(t, s.theme)).join("")}</div>
       </section>
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr));align-items:start;gap:16px">
+        <section class="panel pad in" style="animation-delay:90ms;display:flex;flex-direction:column;gap:14px">
+          <div class="stack" style="gap:4px"><h2 class="section-title">Inteligência artificial</h2>
+            <span class="muted" style="font-size:14px">O Consultor usa o Google Gemini. A chave fica só na memória e some quando você fecha o Mallard.</span></div>
+          ${ai.has_key
+            ? `<div class="row" style="gap:10px;padding:12px 14px;border-radius:6px;background:var(--s0)"><span style="color:var(--acc-text);display:flex">${icon("key", 18)}</span>
+                <span style="flex:1">Chave pronta nesta sessão${ai.masked ? ` (${esc(ai.masked)})` : ""}${ai.from_env ? " · lida da variável GEMINI_API_KEY" : ""}</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="forget-key">Esquecer</button></div>`
+            : `<form class="row wrap" id="set-key-form" style="gap:8px"><label class="sr-only" for="set-key">Chave do Gemini</label>
+                <input id="set-key" class="input" type="password" placeholder="Cole a chave que começa com AIza…" autocomplete="off" spellcheck="false" style="flex:1 1 240px">
+                <button type="submit" class="btn btn-primary">Usar nesta sessão</button></form>`}
+          ${linkGo("Criar ou gerenciar chave no Google AI Studio", `data-url="https://aistudio.google.com/app/apikey"`)}
+        </section>
         <section class="panel pad in" style="animation-delay:120ms;display:flex;flex-direction:column;gap:14px">
           <div class="stack" style="gap:4px"><h2 class="section-title">Movimento</h2><span class="muted" style="font-size:14px">Para quem prefere uma tela mais calma.</span></div>
           ${row("Reduzir animações", "Desliga transições, ondas e o pato balançando. O Windows também pode pedir isso.",
@@ -55,6 +68,17 @@ App.register("settings", (() => {
       await App.setTheme(button.dataset.pickTheme);
       render();
     }));
+    const keyForm = document.getElementById("set-key-form");
+    if (keyForm) keyForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const value = document.getElementById("set-key").value;
+      if (!value.trim()) return;
+      await App.setApiKey(value);
+      App.toast("Chave pronta. Ela some quando você fechar o Mallard.");
+      render();
+    });
+    const forget = document.getElementById("forget-key");
+    if (forget) forget.addEventListener("click", async () => { await App.forgetApiKey(); render(); });
     document.getElementById("reduce-switch").addEventListener("click", async (event) => {
       const on = event.currentTarget.getAttribute("aria-pressed") !== "true";
       event.currentTarget.setAttribute("aria-pressed", String(on));

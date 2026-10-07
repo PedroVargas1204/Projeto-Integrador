@@ -35,7 +35,8 @@ function pageHeader(kicker, title, subtitle, right = "") {
 
 /* ---------- Aplicativo ---------- */
 const App = {
-  state: { settings: null, hardware: null, page: null, info: null },
+  state: { settings: null, hardware: null, page: null, info: null, ai: { has_key: false }, request: null },
+  navOf: { analyzing: "advisor", result: "advisor", error: "advisor" },
   pages: {},
   listeners: {},
   logoClicks: 0,
@@ -79,6 +80,40 @@ const App = {
       document.getElementById("version-label").textContent = `${info.os} · v${info.version}`;
     }).catch(() => {});
     this.loadHardware(false);
+    this.refreshAi();
+  },
+
+  /* ---------- IA (a chave fica só na memória do Python) ---------- */
+  async refreshAi() {
+    try { this.state.ai = await Bridge.call("get_ai_status"); } catch (error) { this.state.ai = { has_key: false }; }
+    this.renderAiStatus();
+    return this.state.ai;
+  },
+  async setApiKey(key) {
+    this.state.ai = await Bridge.call("set_api_key", key);
+    this.renderAiStatus();
+    this.emit("ai", this.state.ai);
+    return this.state.ai;
+  },
+  async forgetApiKey() {
+    this.state.ai = await Bridge.call("forget_api_key");
+    this.renderAiStatus();
+    this.emit("ai", this.state.ai);
+  },
+  renderAiStatus() {
+    const ok = this.state.ai.has_key;
+    document.getElementById("ai-dot").style.background = ok ? "var(--acc-text)" : "var(--warn)";
+    const text = document.getElementById("ai-text");
+    text.textContent = ok ? "IA: pronta nesta sessão" : "IA: chave não informada";
+    text.style.color = ok ? "var(--text2)" : "var(--warn)";
+  },
+
+  /* ---------- Conquista: virou cisne ---------- */
+  swanMoment() {
+    const logo = document.getElementById("brand-logo");
+    logo.innerHTML = `<span class="pop" style="display:flex">${swanSymbol(40, 10)}</span>`;
+    clearTimeout(this.swanTimer);
+    this.swanTimer = setTimeout(() => { logo.innerHTML = logoSymbol(40, 10); }, 4500);
   },
 
   async loadHardware(refresh) {
@@ -102,8 +137,9 @@ const App = {
     }
     this.state.page = id;
     document.getElementById(`page-${id}`).classList.add("active");
+    const navId = this.navOf[id] || id;
     document.querySelectorAll(".nav-btn, .settings-link").forEach((button) => {
-      const active = button.dataset.page === id;
+      const active = button.dataset.page === navId;
       button.classList.toggle("active", active);
       if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
     });
@@ -124,7 +160,10 @@ const App = {
   async setTheme(id) {
     if (!this.state.settings) return;
     const tried = new Set(this.state.settings.tried_themes || []);
+    const normal = (set) => [...set].filter((item) => item !== "patinho").length;
+    const before = normal(tried);
     tried.add(id);
+    if (before < 5 && normal(tried) >= 5) setTimeout(() => this.toast("Conquista desbloqueada: Bando completo"), 400);
     this.state.settings.theme = id;
     this.applyTheme(id);
     this.renderDuckPicker();

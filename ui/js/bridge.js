@@ -22,7 +22,9 @@ const Bridge = (() => {
 
   function createMockApi() {
     const hardware = JSON.parse(JSON.stringify(MOCK_DATA.hardware));
-    const settings = { theme: "mallard", reduce_motion: false, unlocked_1972: false, tried_themes: [], manual_parts: {} };
+    const settings = { theme: "mallard", reduce_motion: false, unlocked_1972: false, tried_themes: [], manual_parts: {}, achievements: {} };
+    let aiKey = "";
+    let history = [];
     const metrics = { cpu: 47.7, ram: 93.8, temp: 58 };
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const unknown = (v) => !v || String(v).toLowerCase().startsWith("não identificado");
@@ -77,6 +79,35 @@ const Bridge = (() => {
         return { parts: MOCK_DATA.parts, glossary: MOCK_DATA.glossary, mine };
       },
       open_url: async (url) => { window.open(url, "_blank"); return true; },
+      get_ai_status: async () => ({ has_key: !!aiKey, masked: aiKey ? `${aiKey.slice(0, 4)}…${aiKey.slice(-4)}` : "", from_env: false }),
+      set_api_key: async (key) => { aiKey = String(key || "").trim(); return { has_key: !!aiKey, masked: aiKey ? `${aiKey.slice(0, 4)}…${aiKey.slice(-4)}` : "", from_env: false }; },
+      forget_api_key: async () => { aiKey = ""; return { has_key: false, masked: "", from_env: false }; },
+      run_analysis: async (perfil, preferencias) => {
+        await new Promise((r) => setTimeout(r, 3800));
+        if (!aiKey) return { ok: false, error: "sem_chave", message: "" };
+        if (/invalida/i.test(aiKey)) { aiKey = ""; return { ok: false, error: "chave_invalida", message: "" }; }
+        if (/offline/i.test(aiKey)) return { ok: false, error: "sem_conexao", message: "" };
+        const first = history.length === 0;
+        const entry = { id: Math.random().toString(16).slice(2, 14), data: new Date().toISOString().slice(0, 16), perfil, preferencias,
+          pecas: { tipo_de_maquina: "desktop", processador: hardware.processador, placas_de_video: hardware.placas_de_video, placa_mae: hardware.placa_mae,
+            memoria_total_gb: 7.8, memoria_uso_percent: 94.7, discos: hardware.discos_detalhes },
+          resultado: JSON.parse(JSON.stringify(MOCK_RESULT)), feitos: MOCK_RESULT.recommendations.map(() => false) };
+        history.unshift(entry);
+        return { ok: true, entry, first };
+      },
+      get_history: async () => JSON.parse(JSON.stringify(history)),
+      get_analysis: async (id) => JSON.parse(JSON.stringify(history.find((e) => e.id === id) || null)),
+      set_upgrade_done: async (id, index, done) => {
+        const entry = history.find((e) => e.id === id);
+        if (!entry) return { entry: null, swan: false };
+        entry.feitos[index] = !!done;
+        const all = entry.feitos.every(Boolean);
+        const firstSwan = all && !settings.achievements.cisne;
+        if (firstSwan) settings.achievements.cisne = true;
+        return { entry: JSON.parse(JSON.stringify(entry)), swan: all, first_swan: firstSwan };
+      },
+      delete_analysis: async (id) => { history = history.filter((e) => e.id !== id); return JSON.parse(JSON.stringify(history)); },
+      export_report: async () => { alert("No app, aqui abre a janela para salvar o relatório."); return { ok: false }; },
     };
   }
 
