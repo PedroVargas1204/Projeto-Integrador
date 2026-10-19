@@ -24,6 +24,12 @@ O projeto começou como **MonitorPc** (Streamlit), virou **HardwareAnalysis** (P
 | **Monitoramento** | CPU, memória, disco e GPU a cada segundo, com o humor do pato conforme o uso. |
 | **Consultor de upgrades** | Três passos (uso, detalhes, orçamento) e o Google Gemini aponta o gargalo e sugere até três upgrades em ordem de prioridade. |
 | **Histórico** | Cada análise fica salva: dá para marcar os upgrades feitos e exportar um relatório em HTML. |
+| **Simulador** | "Provador de peças": escolha mais RAM, um SSD ou uma placa de vídeo e veja o nível do PC antes e depois, sem usar a IA. |
+| **Diário** | Anota o uso a cada minuto (enquanto o app está aberto) e conta a semana: quando a memória encheu e se o PC travou. |
+| **Vai rodar?** | Compara um jogo ou programa com as peças do PC. Títulos fora da lista local podem ser buscados no Gemini (uma solicitação). |
+| **Ferramentas** | **Limpeza** (temporários, cache, Lixeira e Downloads antigos, com segurança), **Inicialização** (liga e desliga programas que abrem com o Windows, sem desinstalar) e **Bateria** (só em notebooks). |
+
+Na primeira vez, o app abre com a escolha do pato e, em cada tela nova, o botão **?** mostra três passos de ajuda.
 
 ### Escolha seu pato
 
@@ -89,7 +95,10 @@ O app **não consulta preços em tempo real**. Os botões de pesquisa abrem resu
 - `hardwareGuide.py`: textos da aba Entenda seu PC.
 - `aiAnalysis.py`: prompt, chamada ao Gemini e tratamento de erros.
 - `analysisHistory.py` / `reportExport.py`: histórico e relatório em HTML.
-- `settingsStore.py`: preferências salvas.
+- `settingsStore.py`: preferências salvas (inclui a abertura já vista e as ajudas já lidas).
+- `upgradeSimulator.py`, `gameCheck.py`, `usageJournal.py`: Simulador, Vai rodar? e Diário.
+- `diskCleanup.py`, `startupItems.py`, `batteryInfo.py`: Limpeza, Inicialização e Bateria (Windows).
+- `runningPrograms.py`: lista de programas que mais usam memória no Monitor (e o botão Fechar, que só pede para o programa encerrar).
 - `ui/`: interface (páginas em `ui/js/pages/`).
 
 ## Créditos
