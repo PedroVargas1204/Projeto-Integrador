@@ -43,11 +43,12 @@ App.register("settings", (() => {
             <span class="muted" style="font-size:14px">O Consultor usa o Google Gemini. A chave fica só na memória e some quando você fecha o Mallard.</span></div>
           ${ai.has_key
             ? `<div class="row" style="gap:10px;padding:12px 14px;border-radius:6px;background:var(--s0)"><span style="color:var(--acc-text);display:flex">${icon("key", 18)}</span>
-                <span style="flex:1">Chave pronta nesta sessão${ai.masked ? ` (${esc(ai.masked)})` : ""}${ai.from_env ? " · lida da variável GEMINI_API_KEY" : ""}</span>
+                <span style="flex:1">Chave preenchida${ai.masked ? ` · termina em ${esc(ai.masked)}` : " nesta sessão"}${ai.from_env ? " · lida da variável GEMINI_API_KEY" : ""}</span>
                 <button type="button" class="btn btn-secondary btn-sm" id="forget-key">Esquecer</button></div>`
             : `<form class="row wrap" id="set-key-form" style="gap:8px"><label class="sr-only" for="set-key">Chave do Gemini</label>
                 <input id="set-key" class="input" type="password" placeholder="Cole a chave que começa com AIza…" autocomplete="off" spellcheck="false" style="flex:1 1 240px">
                 <button type="submit" class="btn btn-primary">Usar nesta sessão</button></form>`}
+          ${ai.model ? `<span class="faint" style="font-size:13px">Modelo: <b class="num" style="color:var(--acc-text)">${esc(ai.model)}</b> · o Mallard só chama a IA quando você clica em Analisar.</span>` : ""}
           ${linkGo("Criar ou gerenciar chave no Google AI Studio", `data-url="https://aistudio.google.com/app/apikey"`)}
         </section>
         <section class="panel pad in" style="animation-delay:120ms;display:flex;flex-direction:column;gap:14px">

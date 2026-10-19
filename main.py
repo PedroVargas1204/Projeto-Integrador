@@ -200,8 +200,10 @@ class MallardApi:
         key = self._api_key
         return {
             "has_key": bool(key),
-            "masked": f"{key[:4]}…{key[-4:]}" if len(key) > 10 else "",
+            # Só os 4 últimos caracteres: o começo ("AIza") é igual em toda chave.
+            "masked": f"…{key[-4:]}" if len(key) >= 8 else "",
             "from_env": bool(key) and key == os.environ.get("GEMINI_API_KEY", "").strip(),
+            "model": aiAnalysis.MODEL,
         }
 
     def set_api_key(self, key):
@@ -231,7 +233,7 @@ class MallardApi:
         except aiAnalysis.AnalysisError as error:
             if error.code == "chave_invalida":
                 self._api_key = ""  # chave recusada: pede outra em vez de insistir
-            return {"ok": False, "error": error.code, "message": error.message}
+            return {"ok": False, "error": error.code, "message": error.message, "retry_seconds": error.retry_seconds}
         entry = analysisHistory.addAnalysis(perfil, preferencias or {}, self._current_hardware(), result)
         return {"ok": True, "entry": entry, "first": first}
 
@@ -279,6 +281,7 @@ class MallardApi:
             "name": APP_NAME,
             "version": APP_VERSION,
             "os": hardwareInfo.getSystemInfo()["operating_system"],
+            "ai_model": aiAnalysis.MODEL,
         }
 
     def get_settings(self):

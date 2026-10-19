@@ -6,7 +6,9 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
-MODEL = "gemini-3-flash-preview"
+# Modelo combinado com o grupo (commit do Eduardo de 13/10). Aparece na tela do Consultor.
+MODEL = "gemini-3.5-flash-lite"
+GEMINI_MODEL = MODEL  # mesmo nome usado na versão antiga
 LEVELS = ("Ovo", "Patinho", "Pato", "Pato-real", "Cisne")
 
 
@@ -17,10 +19,42 @@ class AnalysisError(Exception):
     resposta_invalida, desconhecido.
     """
 
-    def __init__(self, code, message):
+    def __init__(self, code, message, retry_seconds=None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.retry_seconds = retry_seconds  # só no código "limite", quando o Google informa a espera
+
+
+def _retry_seconds(error):
+    """Lê quantos segundos o Google pede para esperar depois de um erro 429.
+
+    O tempo pode vir em details (RetryInfo, "retryDelay": "37s") ou no texto
+    ("Please retry in 1m5.2s"). Devolve None quando não houver.
+    """
+    text = json.dumps(getattr(error, "details", None) or {}, ensure_ascii=False) + " " + str(getattr(error, "message", "") or error)
+    match = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', text)
+    if match:
+        return max(1, round(float(match.group(1))))
+    match = re.search(r"retry in (?:(\d+)h)?(?:(\d+)m)?(\d+(?:\.\d+)?)s", text, flags=re.IGNORECASE)
+    if match:
+        hours, minutes, seconds = int(match.group(1) or 0), int(match.group(2) or 0), float(match.group(3))
+        return max(1, round(hours * 3600 + minutes * 60 + seconds))
+    match = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", text, flags=re.IGNORECASE)
+    if match:
+        return max(1, int(match.group(1)))
+    return None
+
+
+def format_wait(seconds):
+    """60 -> "1 min", 75 -> "1 min e 15 s", 3700 -> "1 h e 1 min"."""
+    hours, rest = divmod(int(seconds), 3600)
+    minutes, secs = divmod(rest, 60)
+    if hours:
+        return f"{hours} h e {minutes} min" if minutes else f"{hours} h"
+    if minutes:
+        return f"{minutes} min e {secs} s" if secs else f"{minutes} min"
+    return f"{secs} s"
 
 
 def _extract_json(text):
@@ -173,9 +207,12 @@ def _classify_error(error):
         lowered = message.lower()
         if code in (401, 403) or "api key" in lowered or "api_key" in lowered or status in {"UNAUTHENTICATED", "PERMISSION_DENIED"}:
             return AnalysisError("chave_invalida", "O Gemini recusou a chave informada.")
-        if code == 429 or status == "RESOURCE_EXHAUSTED":
-            return AnalysisError("limite", "O limite de uso gratuito do Gemini foi atingido por agora.")
-        if code >= 500:
+        if code == 429 or status == "RESOURCE_EXHAUSTED" or "quota" in lowered:
+            wait = _retry_seconds(error)
+            if wait:
+                return AnalysisError("limite", f"O Gemini pediu para esperar pelo menos {format_wait(wait)} antes de tentar de novo.", wait)
+            return AnalysisError("limite", "A cota deste projeto ou modelo no Gemini foi atingida. Espere a cota renovar no AI Studio.")
+        if code >= 500 or status == "UNAVAILABLE" or "overloaded" in lowered:
             return AnalysisError("servico_indisponivel", "O Gemini está fora do ar ou sobrecarregado.")
         return AnalysisError("desconhecido", f"O Gemini recusou o pedido ({code}). {message}".strip())
     name = type(error).__name__.lower()
@@ -185,6 +222,19 @@ def _classify_error(error):
     if isinstance(error, (ValueError, json.JSONDecodeError)):
         return AnalysisError("resposta_invalida", str(error))
     return AnalysisError("desconhecido", str(error) or type(error).__name__)
+
+
+def _single_attempt():
+    """Sem novas tentativas automáticas: um clique em "Analisar" = no máximo uma
+    solicitação ao Gemini (regra do commit do Eduardo de 13/10).
+
+    Versões antigas do google-genai não têm HttpRetryOptions, mas também não
+    repetem chamadas, então nesse caso não é preciso configurar nada.
+    """
+    retry_options = getattr(types, "HttpRetryOptions", None)
+    if retry_options is None:
+        return None
+    return types.HttpOptions(retry_options=retry_options(attempts=1))
 
 
 def consultar_gemini(api_key, hardware, perfil, preferencias):
@@ -203,6 +253,7 @@ def consultar_gemini(api_key, hardware, perfil, preferencias):
                 response_mime_type="application/json",
                 temperature=0.2,
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                http_options=_single_attempt(),
             ),
         )
         if not getattr(response, "text", None):

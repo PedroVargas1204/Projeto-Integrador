@@ -104,7 +104,7 @@ const App = {
     const ok = this.state.ai.has_key;
     document.getElementById("ai-dot").style.background = ok ? "var(--acc-text)" : "var(--warn)";
     const text = document.getElementById("ai-text");
-    text.textContent = ok ? "IA: pronta nesta sessão" : "IA: chave não informada";
+    text.textContent = ok ? `IA: pronta${this.state.ai.masked ? ` · chave ${this.state.ai.masked}` : " nesta sessão"}` : "IA: chave não informada";
     text.style.color = ok ? "var(--text2)" : "var(--warn)";
   },
 

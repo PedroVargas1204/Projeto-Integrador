@@ -69,7 +69,7 @@ App.register("analyzing", (() => {
     running = false;
     if (!response.ok) {
       App.refreshAi();
-      if (App.state.page === "analyzing") App.go("error", { code: response.error, message: response.message });
+      if (App.state.page === "analyzing") App.go("error", { code: response.error, message: response.message, retrySeconds: response.retry_seconds || 0 });
       else App.toast("Não deu para concluir a análise.");
       return;
     }

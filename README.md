@@ -1,64 +1,99 @@
-# HardwareAnalysis
+<p align="center">
+  <img src="assets/mallard-logo.svg" width="120" alt="Logo do Mallard">
+</p>
 
-Aplicativo desktop para conhecer os componentes do computador e receber recomendações de upgrade com ajuda do Gemini. O consultor considera o perfil de uso, o orçamento e as informações disponíveis sobre o hardware para explicar **o que pode valer a pena atualizar e o que confirmar antes de comprar**.
+<h1 align="center">Mallard</h1>
+<p align="center"><strong>Especialista em <em>PATO</em>logia de PC.</strong><br>O estado real do seu PC: monitoramento de hardware com um consultor de upgrades feito por IA.</p>
 
-## Recursos
+---
 
-- Tela de componentes detectados: processador, placa de vídeo, memória, placa-mãe, armazenamento e sistema operacional.
-- Monitoramento ao vivo de CPU e memória, com gráfico do último minuto.
-- Leitura opcional de uso e temperatura de GPU NVIDIA compatível.
-- Consultoria para jogos, trabalho e uso doméstico, com perguntas específicas para cada perfil.
-- Campos opcionais para orçamento, resolução, fonte, placa-mãe e outros dados que ajudam a conferir compatibilidade.
-- Recomendações priorizadas, com justificativa e pontos a verificar antes da compra.
-- Temas claro e escuro; a preferência fica salva entre execuções.
+## A história do nome
 
-## Requisitos
+Em 1972, na Escola Politécnica da USP, ficou pronto o **Patinho Feio**, o primeiro computador projetado e construído no Brasil. O Mallard leva um pato no nome em homenagem a ele e à ideia do conto do Andersen: o patinho que ninguém levava a sério e que vira cisne.
 
-- Python 3.12 recomendado.
-- Conexão com a internet na primeira execução, para que o aplicativo instale as dependências que estiverem faltando.
-- Uma chave da API Gemini para usar o consultor de upgrades.
+*Mallard* é o pato-real em inglês. O slogan entrega o trocadilho: o Mallard é especialista em **PATO**logia de PC. Ele examina o computador, encontra o que está fazendo mal a ele e explica o tratamento.
 
-O aplicativo foi planejado para Windows, Linux e macOS. A identificação de alguns componentes e sensores varia conforme o sistema, as permissões e os drivers instalados. A leitura de GPU atualmente usa NVML, voltada a placas NVIDIA compatíveis.
+O projeto começou como **MonitorPc** (Streamlit), virou **HardwareAnalysis** (PySide6) e hoje é o **Mallard** (PyWebview + HTML/JS).
 
-## Instalação e execução
+## O que ele faz
 
-Clone ou baixe o repositório, abra um terminal na pasta do projeto e execute:
+| | |
+|---|---|
+| **Meu computador** | Identifica processador, memória, disco, placa de vídeo e placa-mãe. Peças não identificadas podem ser informadas à mão. Dá ao PC um nível: Ovo, Patinho, Pato, Pato-real ou Cisne. |
+| **Entenda seu PC** | Explica cada peça com a mesma analogia: o computador é uma cozinha (o processador é o cozinheiro, a memória é a bancada, o disco é a despensa). |
+| **Monitoramento** | CPU, memória, disco e GPU a cada segundo, com o humor do pato conforme o uso. |
+| **Consultor de upgrades** | Três passos (uso, detalhes, orçamento) e o Google Gemini aponta o gargalo e sugere até três upgrades em ordem de prioridade. |
+| **Histórico** | Cada análise fica salva: dá para marcar os upgrades feitos e exportar um relatório em HTML. |
+
+### Escolha seu pato
+
+Cinco temas, cada um com as cores de uma plumagem:
+
+| Tema | Plumagem |
+|---|---|
+| **Mallard** (padrão) | Pato-real macho: cabeça verde e espéculo azul-violeta |
+| **Pekin** | Branco, com bico laranja (tema claro) |
+| **Fêmea** | Marrom e bege da fêmea do pato-real (tema claro) |
+| **Cinzento** | Do cinza-claro ao chumbo, com bico amarelo |
+| **Cayuga** | Preto com brilho verde-besouro |
+
+Dizem que existe um sexto pato, mas ele só aparece para quem insiste no logo.
+
+## Rodando a partir do código
+
+Requer **Windows 10 ou 11** e **Python 3.12**.
 
 ```bash
+git clone https://github.com/PedroVargas1204/Projeto-Integrador.git
+cd Projeto-Integrador
 python app.py
 ```
 
-`app.py` inicia a interface desktop do HardwareAnalysis. Na primeira execução, o `main.py` verifica e instala as dependências Python necessárias usando o mesmo interpretador. No Windows, também tenta instalar WMI/PyWin32; NVML é instalado para habilitar sensores NVIDIA. Se a instalação automática falhar, o aplicativo informa o comando de instalação.
+Também é possível iniciar com `python main.py`. Na primeira execução, o app instala sozinho as bibliotecas que faltarem (`pywebview`, `psutil`, `wmi`, `pynvml` e `google-genai`).
 
-Também é possível iniciar diretamente com `python main.py`.
+Para ver só a interface, sem Python, abra `ui/index.html` no navegador: ela entra em **modo demonstração**, com dados de exemplo.
 
-## Configurar o Gemini
+### Requisitos de hardware
 
-1. Crie uma chave no [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Abra o HardwareAnalysis e informe a chave no campo **Chave Gemini**, na barra lateral.
-3. Acesse **Consultor de upgrades**, escolha o tipo de uso e clique em **Analisar meu computador**.
+- Uso e temperatura da GPU: placas NVIDIA com driver instalado.
 
-A chave digitada fica apenas na sessão atual e não é gravada pelo aplicativo. Se quiser evitar digitá-la em cada execução, configure `GEMINI_API_KEY` no ambiente antes de abrir o app.
+## Chave e uso do Gemini
 
-Ao solicitar uma análise, os componentes detectados e as preferências preenchidas são enviados ao serviço Gemini. A coleta e o monitoramento de hardware acontecem localmente.
+O Consultor usa o modelo **`gemini-3.5-flash-lite`** do Google Gemini. O nome do modelo aparece na tela do Consultor e nas Configurações; para trocar, altere `MODEL` em `aiAnalysis.py`.
 
-## Como usar o consultor
+**Como conseguir a chave:** acesse o [Google AI Studio](https://aistudio.google.com/app/apikey), clique em **Create API key** e copie a chave que começa com `AIza…`.
 
-- Selecione **Jogos**, **Trabalho** ou **Uso doméstico**. As perguntas seguintes mudam conforme a escolha.
-- Em jogos, indique se o foco são competitivos leves, títulos AAA, jogos indie ou outro perfil. É possível informar um jogo específico.
-- Informe o orçamento se tiver um limite. Se ele não comportar uma melhoria que valha a pena, o consultor deve explicar isso sem recomendar ultrapassá-lo.
-- Os campos adicionais de compatibilidade são opcionais. Se não souber uma informação, deixe-a em branco; ela será desconsiderada.
+A chave digitada fica apenas na memória enquanto o Mallard está aberto e **nunca é gravada em disco**. Se quiser evitar digitá-la a cada execução, configure a variável de ambiente `GEMINI_API_KEY` antes de abrir o app.
 
-## Limites das recomendações e preços
+O app mostra um indicador quando há uma chave preenchida e exibe apenas os seus últimos quatro caracteres (por exemplo, `termina em …a1B2`).
 
-O Gemini auxilia na análise, mas não substitui a confirmação de compatibilidade. Soquete, BIOS, fonte, dimensões do gabinete e tipo de memória podem exigir conferência manual, especialmente em computadores OEM.
+Cada clique em **Analisar meu computador** faz uma única solicitação ao Gemini: o app não repete chamadas automaticamente nem chama a IA em segundo plano. Se a API retornar limite de uso (`429`), o Mallard informa o tempo de espera fornecido pelo Google e só libera o botão **Tentar de novo** depois dele. O limite depende da cota atual do projeto e do modelo.
 
-O aplicativo **não consulta preços em tempo real**. Os botões de pesquisa abrem resultados de produtos; eles não são cotações e podem incluir ofertas indisponíveis ou incompatíveis. Confirme preço, estoque, vendedor e compatibilidade na loja antes de comprar.
+Ao pedir uma análise, os componentes detectados e as respostas do Consultor são enviados ao Gemini. A coleta e o monitoramento de hardware acontecem localmente.
+
+O app **não consulta preços em tempo real**. Os botões de pesquisa abrem resultados de busca; eles não são cotações. Confirme preço, estoque, vendedor e compatibilidade na loja antes de comprar.
+
+## Como funciona por dentro
+
+- **Interface:** HTML, CSS e JavaScript na pasta `ui/`, dentro de uma janela PyWebview. O JavaScript chama as funções Python direto pela ponte `js_api` (por exemplo, `await window.pywebview.api.get_metrics()`), sem servidor local nem portas.
+- **Hardware:** `psutil` (uso), `wmi` (identificação das peças) e `pynvml` (GPU NVIDIA).
+- **IA:** `google-genai`, com resposta em JSON validada pelo app (veredito, gargalo, nível antes e depois e recomendações). Erros viram códigos com uma tela própria: `sem_chave`, `chave_invalida`, `sem_conexao`, `limite`, `servico_indisponivel`, `resposta_invalida` e `desconhecido`.
+- **Dados:** configurações e histórico ficam em `%APPDATA%\Mallard` (`config.json` e `historico.json`). A chave do Gemini nunca vai para esses arquivos.
+- **Temas:** cada pato é um conjunto de variáveis CSS aplicado com uma classe no `<html>`.
 
 ## Estrutura do projeto
 
-- `app.py`: ponto de entrada recomendado.
-- `main.py`: interface PySide6, verificação de dependências, formulários e apresentação das recomendações.
-- `hardwareInfo.py`: descoberta de componentes com caminhos específicos por sistema operacional.
-- `hardwareMonitoring.py`: métricas de CPU, memória e provedor NVIDIA NVML opcional.
-- `aiAnalysis.py`: instruções do consultor, validação da resposta JSON e links de pesquisa.
+- `app.py` / `main.py`: ponto de entrada e a ponte `MallardApi` usada pela interface.
+- `hardwareInfo.py` / `hardwareMonitoring.py`: leitura das peças e do uso.
+- `pcHealth.py`: nível do PC e pontos de atenção.
+- `hardwareGuide.py`: textos da aba Entenda seu PC.
+- `aiAnalysis.py`: prompt, chamada ao Gemini e tratamento de erros.
+- `analysisHistory.py` / `reportExport.py`: histórico e relatório em HTML.
+- `settingsStore.py`: preferências salvas.
+- `ui/`: interface (páginas em `ui/js/pages/`).
+
+## Créditos
+
+Feito por Eduardo Fleming Diniz, Pedro Vargas, [Nome 3], [Nome 4] e [Nome 5] como [disciplina / instituição].
+
+Homenagem ao **Patinho Feio** (Escola Politécnica da USP, 1972).

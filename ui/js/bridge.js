@@ -24,6 +24,8 @@ const Bridge = (() => {
     const hardware = JSON.parse(JSON.stringify(MOCK_DATA.hardware));
     const settings = { theme: "mallard", reduce_motion: false, unlocked_1972: false, tried_themes: [], manual_parts: {}, achievements: {} };
     let aiKey = "";
+    const AI_MODEL = "gemini-3.5-flash-lite";
+    const aiStatus = () => ({ has_key: !!aiKey, masked: aiKey.length >= 8 ? `…${aiKey.slice(-4)}` : "", from_env: false, model: AI_MODEL });
     let history = [];
     const metrics = { cpu: 47.7, ram: 93.8, temp: 58 };
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -48,7 +50,7 @@ const Bridge = (() => {
     }
 
     return {
-      get_app_info: async () => ({ name: "Mallard", version: "2.0", os: "Windows 10 (exemplo)" }),
+      get_app_info: async () => ({ name: "Mallard", version: "2.0", os: "Windows 10 (exemplo)", ai_model: AI_MODEL }),
       get_settings: async () => ({ ...settings }),
       save_settings: async (changes) => { Object.assign(settings, changes); return { ...settings }; },
       get_hardware: async () => new Promise((r) => setTimeout(() => r(withManual()), 500)),
@@ -79,14 +81,15 @@ const Bridge = (() => {
         return { parts: MOCK_DATA.parts, glossary: MOCK_DATA.glossary, mine };
       },
       open_url: async (url) => { window.open(url, "_blank"); return true; },
-      get_ai_status: async () => ({ has_key: !!aiKey, masked: aiKey ? `${aiKey.slice(0, 4)}…${aiKey.slice(-4)}` : "", from_env: false }),
-      set_api_key: async (key) => { aiKey = String(key || "").trim(); return { has_key: !!aiKey, masked: aiKey ? `${aiKey.slice(0, 4)}…${aiKey.slice(-4)}` : "", from_env: false }; },
-      forget_api_key: async () => { aiKey = ""; return { has_key: false, masked: "", from_env: false }; },
+      get_ai_status: async () => aiStatus(),
+      set_api_key: async (key) => { aiKey = String(key || "").trim(); return aiStatus(); },
+      forget_api_key: async () => { aiKey = ""; return aiStatus(); },
       run_analysis: async (perfil, preferencias) => {
         await new Promise((r) => setTimeout(r, 3800));
         if (!aiKey) return { ok: false, error: "sem_chave", message: "" };
         if (/invalida/i.test(aiKey)) { aiKey = ""; return { ok: false, error: "chave_invalida", message: "" }; }
         if (/offline/i.test(aiKey)) return { ok: false, error: "sem_conexao", message: "" };
+        if (/limite/i.test(aiKey)) return { ok: false, error: "limite", message: "O Gemini pediu para esperar pelo menos 45 s antes de tentar de novo.", retry_seconds: 45 };
         const first = history.length === 0;
         const entry = { id: Math.random().toString(16).slice(2, 14), data: new Date().toISOString().slice(0, 16), perfil, preferencias,
           pecas: { tipo_de_maquina: "desktop", processador: hardware.processador, placas_de_video: hardware.placas_de_video, placa_mae: hardware.placa_mae,

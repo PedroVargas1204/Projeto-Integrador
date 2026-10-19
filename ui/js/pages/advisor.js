@@ -116,11 +116,22 @@ App.register("advisor", (() => {
       <dt class="faint" style="font-size:14px;flex-shrink:0">${key}</dt><dd style="margin:0;font-size:14px;font-weight:600;text-align:right;color:${dash(value) === "—" ? "var(--faint)" : "var(--text)"}">${esc(dash(value))}</dd></div>`).join("");
   }
 
+  /* Modelo usado e a regra de uma solicitação por clique (pedido do commit do Eduardo de 13/10). */
+  function modelLine() {
+    const model = App.state.ai.model || (App.state.info && App.state.info.ai_model) || "";
+    return model ? `<span class="faint" style="font-size:13px">Modelo usado nesta análise: <b class="num" style="color:var(--acc-text)">${esc(model)}</b>.
+      Cada clique em Analisar faz uma única solicitação ao Gemini.</span>` : "";
+  }
+
   function keyBlock() {
+    return `<div class="stack" style="gap:8px">${keyBox()}${modelLine()}</div>`;
+  }
+
+  function keyBox() {
     const ai = App.state.ai;
     if (ai.has_key) {
       return `<div class="row" style="gap:10px;padding:12px 14px;border-radius:6px;background:var(--s0);font-size:14px">
-        <span style="color:var(--acc-text);display:flex">${icon("key", 18)}</span><span style="flex:1">Chave pronta nesta sessão${ai.masked ? ` (${esc(ai.masked)})` : ""}</span>
+        <span style="color:var(--acc-text);display:flex">${icon("check", 18)}</span><span style="flex:1">Chave preenchida${ai.masked ? ` · termina em ${esc(ai.masked)}` : " nesta sessão"}</span>
         <button type="button" class="link-go" id="adv-key-change" style="font-size:13px">Trocar</button></div>`;
     }
     return `<form class="stack" id="adv-key-form" style="gap:8px;padding:14px;border-radius:6px;border:1px solid var(--warn);background:var(--warn-soft)">
