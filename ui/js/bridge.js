@@ -137,6 +137,14 @@ const Bridge = (() => {
           impacts: [{ name: "Vários programas", before: multi(7.8), after: multi(ram || 7.8) }, { name: "Jogos", before: 25, after: 25 + (ram ? 8 : 0) + (c.gpu_tier ? 30 * c.gpu_tier : 0) + (c.nvme ? 4 : 0) },
             { name: "Espaço livre", before: 13, after: c.ssd_gb ? Math.round(100 * (30.5 + c.ssd_gb) / (236.7 + c.ssd_gb)) : 13 }], checks };
       },
+      get_top_programs: async () => [
+        { key: "chrome", name: "Google Chrome", memory_mb: 1900, share: 100, protected: false, closable: true },
+        { key: "discord", name: "Discord", memory_mb: 640, share: 33, protected: false, closable: true },
+        { key: "msmpeng", name: "Windows Defender", memory_mb: 410, share: 21, protected: true, closable: false },
+        { key: "steam", name: "Steam", memory_mb: 380, share: 20, protected: false, closable: true },
+        { key: "spotify", name: "Spotify", memory_mb: 290, share: 15, protected: false, closable: true },
+      ],
+      close_program: async () => ({ closed: 4, skipped: 0, refused: false }),
       get_game_examples: async () => [{ key: "valorant", name: "Valorant" }, { key: "minecraft", name: "Minecraft" }, { key: "photoshop", name: "Adobe Photoshop" }, { key: "cyberpunk", name: "Cyberpunk 2077" }],
       check_game: async (q) => {
         const t = String(q || "").toLowerCase();

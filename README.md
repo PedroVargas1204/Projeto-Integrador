@@ -98,6 +98,7 @@ O app **não consulta preços em tempo real**. Os botões de pesquisa abrem resu
 - `settingsStore.py`: preferências salvas (inclui a abertura já vista e as ajudas já lidas).
 - `upgradeSimulator.py`, `gameCheck.py`, `usageJournal.py`: Simulador, Vai rodar? e Diário.
 - `diskCleanup.py`, `startupItems.py`, `batteryInfo.py`: Limpeza, Inicialização e Bateria (Windows).
+- `runningPrograms.py`: lista de programas que mais usam memória no Monitor (e o botão Fechar, que só pede para o programa encerrar).
 - `ui/`: interface (páginas em `ui/js/pages/`).
 
 ## Créditos

@@ -74,6 +74,7 @@ import hardwareInfo
 import hardwareMonitoring
 import pcHealth
 import reportExport
+import runningPrograms
 import settingsStore
 import startupItems
 import upgradeSimulator
@@ -294,6 +295,14 @@ class MallardApi:
             nvme=bool(choice.get("nvme")),
             gpu_tier=choice.get("gpu_tier"),
         )
+
+    def get_top_programs(self):
+        """Os programas que mais usam memória agora (agrupados por nome)."""
+        return runningPrograms.topPrograms()
+
+    def close_program(self, key):
+        """Pede para um programa encerrar. Programas do sistema não são fechados."""
+        return runningPrograms.closeProgram(key)
 
     # ------------------------------------------------------------------
     # Vai rodar?
