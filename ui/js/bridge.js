@@ -22,12 +22,19 @@ const Bridge = (() => {
 
   function createMockApi() {
     const hardware = JSON.parse(JSON.stringify(MOCK_DATA.hardware));
-    const settings = { theme: "mallard", reduce_motion: false, unlocked_1972: false, tried_themes: [], manual_parts: {}, achievements: {} };
+    const settings = { theme: "mallard", reduce_motion: false, unlocked_1972: false, tried_themes: [], manual_parts: {}, achievements: {}, onboarded: /skip-intro/.test(location.hash), help_seen: {} };
     let aiKey = "";
     const AI_MODEL = "gemini-3.5-flash-lite";
     const aiStatus = () => ({ has_key: !!aiKey, masked: aiKey.length >= 8 ? `…${aiKey.slice(-4)}` : "", from_env: false, model: AI_MODEL });
     let history = [];
     const metrics = { cpu: 47.7, ram: 93.8, temp: 58 };
+    let cleanJob = null;
+    const startupItems = [
+      { id: "user:Discord", name: "Discord", hint: "Chat e voz. Abre sozinho e fica na bandeja.", impact: "Alto", seconds: 6, memory_mb: 310, enabled: true, locked: false, suggest: true, source: "Registro" },
+      { id: "user:Spotify", name: "Spotify", hint: "Música. Pode abrir só quando você quiser.", impact: "Médio", seconds: 3, memory_mb: 190, enabled: true, locked: false, suggest: true, source: "Registro" },
+      { id: "user:OneDrive", name: "OneDrive", hint: "Sincroniza arquivos com a nuvem da Microsoft.", impact: "Médio", seconds: 4, memory_mb: 120, enabled: true, locked: false, suggest: false, source: "Registro" },
+      { id: "machine:SecurityHealth", name: "Segurança do Windows", hint: "Mantém o Defender ativo. Não mexa.", impact: "Baixo", seconds: 1, memory_mb: 20, enabled: true, locked: true, suggest: false, source: "Registro" },
+    ];
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const unknown = (v) => !v || String(v).toLowerCase().startsWith("não identificado");
 
@@ -111,6 +118,88 @@ const Bridge = (() => {
       },
       delete_analysis: async (id) => { history = history.filter((e) => e.id !== id); return JSON.parse(JSON.stringify(history)); },
       export_report: async () => { alert("No app, aqui abre a janela para salvar o relatório."); return { ok: false }; },
+
+      /* ---------- Telas novas (dados de exemplo; no app vêm dos módulos Python) ---------- */
+      get_simulation_options: async () => [
+        { key: "ram", name: "Memória RAM", opts: [{ name: "8 GB", note: "O que você tem", ram_gb: 8 }, { name: "16 GB", note: "2 × 8 GB", ram_gb: 16 }, { name: "32 GB", note: "2 × 16 GB", ram_gb: 32 }] },
+        { key: "stor", name: "Armazenamento", opts: [{ name: "Só o C:", note: "236,7 GB, quase cheio", ssd_gb: 0, nvme: false }, { name: "+ SSD 500 GB", note: "SATA, na baia", ssd_gb: 500, nvme: false }, { name: "+ SSD 1 TB", note: "NVMe, encaixe M.2", ssd_gb: 1000, nvme: true }] },
+        { key: "gpu", name: "Placa de vídeo", opts: [{ name: "A de hoje", note: "Não identificada", gpu_tier: null }, { name: "De entrada", note: "Jogos leves em 1080p", gpu_tier: 1 }, { name: "Intermediária", note: "Jogos atuais em 1080p", gpu_tier: 2 }] },
+      ],
+      simulate_upgrade: async (c) => {
+        const ram = c.ram_gb && c.ram_gb > 8 ? c.ram_gb : null;
+        const level = Math.min(4, 1 + (ram ? (ram >= 32 ? 2 : 1) : 0) + (c.ssd_gb ? 1 : 0) + (c.gpu_tier ? 1 : 0));
+        const multi = (total) => clamp(Math.round(117 - 91.8 * (7.4 / total)), 5, 98);
+        const checks = [];
+        if (ram) checks.push("Confirme se a placa-mãe usa o mesmo tipo de memória (DDR3, DDR4 ou DDR5) e quantos slots estão livres.");
+        if (c.nvme) checks.push("O SSD NVMe precisa de encaixe M.2, e a placa-mãe não foi identificada.");
+        if (c.gpu_tier) checks.push("Confira a potência da fonte e o comprimento de placa que cabe no gabinete.");
+        return { level, level_name: LEVEL_NAMES[level], level_today: 1, level_today_name: LEVEL_NAMES[1], changed: checks.length > 0 || c.ssd_gb > 0,
+          impacts: [{ name: "Vários programas", before: multi(7.8), after: multi(ram || 7.8) }, { name: "Jogos", before: 25, after: 25 + (ram ? 8 : 0) + (c.gpu_tier ? 30 * c.gpu_tier : 0) + (c.nvme ? 4 : 0) },
+            { name: "Espaço livre", before: 13, after: c.ssd_gb ? Math.round(100 * (30.5 + c.ssd_gb) / (236.7 + c.ssd_gb)) : 13 }], checks };
+      },
+      get_game_examples: async () => [{ key: "valorant", name: "Valorant" }, { key: "minecraft", name: "Minecraft" }, { key: "photoshop", name: "Adobe Photoshop" }, { key: "cyberpunk", name: "Cyberpunk 2077" }],
+      check_game: async (q) => {
+        const t = String(q || "").toLowerCase();
+        const rows = (ramState) => [
+          { part: "Memória RAM", s: ramState, state: ramState === "ok" ? "Passa" : ramState === "warn" ? "No limite" : "Abaixo do mínimo", you: "7,8 GB (0,4 GB livres)", need: "8 GB mínimo · 16 GB recomendado", scale: { max: 32, min: 8, rec: 16, val: 7.8, min_label: "8 GB", rec_label: "16 GB" } },
+          { part: "Processador", s: "ok", state: "Passa", you: "6 núcleos", need: "4 núcleos", scale: null },
+          { part: "Placa de vídeo", s: "unk", state: "Não identificada", you: "Não identificada", need: "GTX 1050 ou melhor", scale: null },
+          { part: "Espaço em disco", s: "ok", state: "Passa", you: "30,5 GB livres", need: "20 GB", scale: null },
+        ];
+        if (/valorant/.test(t)) return { found: true, source: "lista", name: "Valorant", kind: "Jogo", noun: "jogo", score: 70, verdict: "Roda", color: "ok", duck: "pato", cta: { label: "Ver no Simulador", page: "simulator" }, rows: rows("ok") };
+        if (/photoshop/.test(t)) return { found: true, source: "lista", name: "Adobe Photoshop", kind: "Programa", noun: "programa", score: 65, verdict: "No limite", color: "warn", duck: "patinho", cta: { label: "Ver no Simulador", page: "simulator" }, rows: rows("warn") };
+        if (/cyberpunk/.test(t)) return { found: true, source: "lista", name: "Cyberpunk 2077", kind: "Jogo", noun: "jogo", score: 18, verdict: "Não roda bem", color: "crit", duck: "ovo", cta: { label: "Ver no Simulador", page: "simulator" }, rows: rows("crit") };
+        if (/minecraft/.test(t)) return { found: true, source: "lista", name: "Minecraft", kind: "Jogo", noun: "jogo", score: 78, verdict: "Roda", color: "ok", duck: "pato", cta: null, rows: rows("ok") };
+        return { found: false, query: String(q || "").trim() };
+      },
+      ask_game: async (q) => {
+        await new Promise((r) => setTimeout(r, 1200));
+        if (!aiKey) return { ok: false, error: "sem_chave", message: "Falta a chave do Gemini." };
+        if (/limite/i.test(aiKey)) return { ok: false, error: "limite", message: "O limite gratuito foi atingido.", retry_seconds: 40 };
+        if (/zzz/i.test(q)) return { ok: true, found: false, query: q };
+        return { ok: true, found: true, source: "gemini", name: String(q).trim(), kind: "Jogo", noun: "jogo", score: 52, verdict: "No limite", color: "warn", duck: "patinho", cta: { label: "Ver no Simulador", page: "simulator" },
+          rows: [{ part: "Memória RAM", s: "warn", state: "Abaixo do ideal", you: "7,8 GB", need: "8 GB mínimo · 16 GB recomendado", scale: { max: 32, min: 8, rec: 16, val: 7.8, min_label: "8 GB", rec_label: "16 GB" } }] };
+      },
+      get_journal: async (offset) => {
+        const names = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"], full = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+        const moods = ["ok", "atento", "dificil", "travou", "dificil", "ok", null], peaks = [78, 88, 93, 98, 94, 76, 0];
+        const days = names.map((label, i) => {
+          const base = { date: `2026-10-${12 + i}`, label, full: full[i], short_date: `${12 + i}/10`, today: i === 5 && offset === 0, future: i === 6 && offset === 0 };
+          if (base.future) return base;
+          if (offset > 1 && i > 2) return { ...base, empty: true };
+          return { ...base, mood: moods[i], peak: peaks[i], minutes: 300, story: moods[i] === "travou" ? "A memória encheu de vez com o Chrome aberto e o PC provavelmente travou 2 vezes. O pico foi de 98%." : "A memória ficou cheia por cerca de 2 h. Chegou a " + peaks[i] + "%: o PC fica lento, mas não chegou a travar.",
+            tip: moods[i] === "ok" ? "Dias assim são o normal do seu PC. Ótimo!" : "Fechar o Chrome e abrir de novo costuma liberar a memória que ele segura.",
+            events: moods[i] === "ok" ? [["09:10", "PC ligado, memória em 52%", "ok"]] : [["14:20", "A memória passou de 90%", "warn"], ["14:48", "O PC travou por alguns segundos", "crit"]] };
+        });
+        return { days, week_label: offset === 0 ? "nesta semana" : offset === 1 ? "na semana passada" : `há ${offset} semanas`, selected: 3, has_data: true, week_start: "2026-10-12",
+          insights: [{ kind: "warn", title: "A memória enche por volta das 14h", text: "Em 3 dos últimos 5 dias a memória passou de 90% nesse horário.", action: { label: "Ver no Simulador", page: "simulator" } },
+            { kind: "crit", title: "O PC travou 2 vezes", text: "Os travamentos aconteceram com a memória acima de 97%.", action: { label: "Ver o Monitor", page: "monitor" } }] };
+      },
+      get_startup: async () => ({ supported: true, base_seconds: 30, items: startupItems.map((i) => ({ ...i })) }),
+      set_startup_enabled: async (id, enabled) => { const item = startupItems.find((i) => i.id === id); if (item && !item.locked) item.enabled = !!enabled; return { supported: true, base_seconds: 30, items: startupItems.map((i) => ({ ...i })) }; },
+      get_battery: async () => ({ supported: !!/battery/.test(location.hash), percent: 64, plugged: false, design_wh: 48.0, full_wh: 37.4, cycles: 312, health_percent: 78, has_report: true,
+        history: [{ label: "nov/2025", wh: 44.1 }, { label: "jan/2026", wh: 42.0 }, { label: "mar/2026", wh: 40.2 }, { label: "mai/2026", wh: 39.0 }, { label: "jul/2026", wh: 38.1 }, { label: "hoje", wh: 37.4 }],
+        drain: [{ name: "chrome", percent: 46 }, { name: "Discord", percent: 22 }, { name: "Teams", percent: 14 }] }),
+      open_power_settings: async () => true,
+      scan_cleanup: async () => ({ supported: true, disk: { device: "C:", total_bytes: 236.7e9, used_bytes: 206.2e9, free_bytes: 30.5e9, percent: 87.1 },
+        categories: [{ key: "tmp", name: "Arquivos temporários", desc: "Sobras de instalações. Os das últimas 24 h ficam.", review: false, bytes: 2.1e9, files: 1432 },
+          { key: "upd", name: "Restos de atualizações", desc: "Instaladores de atualizações já aplicadas.", review: false, bytes: 3.4e9, files: 210 },
+          { key: "cache", name: "Cache dos navegadores", desc: "Chrome, Edge e Brave recriam sozinhos.", review: false, bytes: 1.2e9, files: 8120 },
+          { key: "bin", name: "Lixeira", desc: "Arquivos que você já apagou antes.", review: false, bytes: 0.8e9, files: 36 },
+          { key: "dl", name: "Downloads com mais de 90 dias", desc: "Vão para a Lixeira: dá para recuperar.", review: true, bytes: 5.6e9, files: 73 }] }),
+      start_cleanup: async (keys) => { cleanJob = { phase: "cleaning", progress: 0, current: "Arquivos temporários", freed: 0, per_key: {}, error: null, keys, t: Date.now() }; return { ...cleanJob }; },
+      get_cleanup_status: async () => {
+        if (!cleanJob) return { phase: "idle", progress: 0, current: "", freed: 0, per_key: {}, error: null };
+        const p = Math.min(100, Math.round((Date.now() - cleanJob.t) / 25));
+        if (p < 100) return { phase: "cleaning", progress: p, current: cleanJob.keys[Math.min(cleanJob.keys.length - 1, Math.floor(p / 34))], freed: 0, per_key: {}, error: null };
+        const sizes = { tmp: 2.1e9, upd: 3.4e9, cache: 1.2e9, bin: 0.8e9, dl: 5.6e9 };
+        const per = Object.fromEntries(cleanJob.keys.map((k) => [k, { freed: sizes[k], files: 100, skipped: k === "tmp" ? 3 : 0 }]));
+        const freed = cleanJob.keys.reduce((s, k) => s + sizes[k], 0);
+        const first = !settings.achievements.ninho && freed > 6e9;
+        if (first) settings.achievements.ninho = true;
+        return { phase: "done", progress: 100, current: "", freed, per_key: per, error: null, first_ninho: first, disk: { device: "C:", total_bytes: 236.7e9, used_bytes: 206.2e9 - freed, free_bytes: 30.5e9 + freed, percent: Math.round(1000 * (206.2e9 - freed) / 236.7e9) / 10 } };
+      },
+      reset_cleanup: async () => { cleanJob = null; return { phase: "idle", progress: 0, current: "", freed: 0, per_key: {}, error: null }; },
     };
   }
 

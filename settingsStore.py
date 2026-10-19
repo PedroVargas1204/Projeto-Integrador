@@ -16,11 +16,14 @@ DEFAULTS = {
     "tried_themes": [],
     "manual_parts": {},
     "achievements": {},
+    "onboarded": False,
+    "help_seen": {},
 }
 
 THEMES = ("mallard", "pekin", "femea", "cinzento", "cayuga", "patinho")
 MANUAL_PARTS = ("gpu", "mb")
 ACHIEVEMENTS = ("cisne", "ninho")
+HELP_PAGES = ("simulator", "gamecheck", "journal", "startup", "battery", "cleanup")
 
 
 def _config_path():
@@ -52,6 +55,10 @@ def _clean(data):
         settings["achievements"] = {
             key: True for key, value in data["achievements"].items() if key in ACHIEVEMENTS and value is True
         }
+    if isinstance(data.get("onboarded"), bool):
+        settings["onboarded"] = data["onboarded"]
+    if isinstance(data.get("help_seen"), dict):
+        settings["help_seen"] = {key: True for key, value in data["help_seen"].items() if key in HELP_PAGES and value is True}
     if settings["theme"] == "patinho" and not settings["unlocked_1972"]:
         settings["theme"] = "mallard"
     return settings

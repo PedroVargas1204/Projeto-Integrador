@@ -265,3 +265,73 @@ def consultar_gemini(api_key, hardware, perfil, preferencias):
 
 def get_search_url(query):
     return f"https://www.google.com/search?tbm=shop&q={quote_plus(query)}"
+
+
+def _build_requirements_prompt(nome):
+    return f"""
+Você ajuda a decidir se um jogo ou programa roda em um computador. Informe os requisitos
+de referência de "{nome}" (versão atual, para Windows). Se não conhecer esse título, ou se o
+nome não for de um jogo ou programa, responda com "found": false. Não invente números.
+
+Níveis (0 a 3) para processador e placa de vídeo:
+- cpu_min_tier / cpu_rec_tier: 0 = 2 núcleos, 1 = 4 núcleos, 2 = 6 núcleos, 3 = 8 ou mais.
+- gpu_min_tier / gpu_rec_tier: 0 = vídeo integrado, 1 = entrada (GTX 1050), 2 = intermediária
+  (GTX 1660, RTX 3050), 3 = alta (RTX 3060 ou melhor).
+
+Responda somente com JSON válido, sem Markdown:
+{{"found": true, "name": "nome oficial", "kind": "tipo curto (ex.: Jogo AAA, Programa de edição)",
+  "noun": "jogo ou programa", "ram_min_gb": 8, "ram_rec_gb": 16, "cpu_min_tier": 1, "cpu_rec_tier": 2,
+  "cpu_text": "processador pedido em linguagem simples", "gpu_min_tier": 1, "gpu_rec_tier": 2,
+  "gpu_text": "placa de vídeo pedida em linguagem simples", "disk_gb": 50}}
+"""
+
+
+def _validate_requirements(data):
+    if not isinstance(data, dict) or not data.get("found"):
+        return None
+    try:
+        ok = {
+            "name": str(data["name"]).strip()[:60], "kind": str(data.get("kind") or "Jogo ou programa")[:40],
+            "noun": "jogo" if str(data.get("noun")).lower().startswith("jog") else "programa",
+            "ram_min_gb": float(data["ram_min_gb"]), "ram_rec_gb": float(data["ram_rec_gb"]),
+            "cpu_min_tier": int(data["cpu_min_tier"]), "cpu_rec_tier": int(data["cpu_rec_tier"]),
+            "gpu_min_tier": int(data["gpu_min_tier"]), "gpu_rec_tier": int(data["gpu_rec_tier"]),
+            "cpu_text": str(data.get("cpu_text") or "")[:80], "gpu_text": str(data.get("gpu_text") or "")[:80],
+            "disk_gb": float(data["disk_gb"]),
+        }
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("A IA não devolveu os requisitos no formato esperado.") from error
+    if not ok["name"] or ok["ram_min_gb"] <= 0 or ok["ram_min_gb"] > 128 or ok["disk_gb"] < 0 or ok["disk_gb"] > 2000:
+        raise ValueError("Os requisitos devolvidos pela IA não parecem válidos.")
+    ok["ram_rec_gb"] = max(ok["ram_rec_gb"], ok["ram_min_gb"])
+    for key in ("cpu_min_tier", "cpu_rec_tier", "gpu_min_tier", "gpu_rec_tier"):
+        ok[key] = max(0, min(3, ok[key]))
+    ok["cpu_rec_tier"] = max(ok["cpu_rec_tier"], ok["cpu_min_tier"])
+    ok["gpu_rec_tier"] = max(ok["gpu_rec_tier"], ok["gpu_min_tier"])
+    return ok
+
+
+def consultar_requisitos(api_key, nome):
+    """Pergunta ao Gemini os requisitos de um jogo/programa que não está na lista local.
+
+    Uma chamada = uma solicitação, igual ao Consultor. Devolve None quando o título não existe.
+    """
+    if not api_key:
+        raise AnalysisError("sem_chave", "Informe a chave do Gemini para pesquisar esse título.")
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=_build_requirements_prompt(str(nome)[:80]),
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                http_options=_single_attempt(),
+            ),
+        )
+        if not getattr(response, "text", None):
+            raise ValueError("A IA não retornou conteúdo. Tente novamente.")
+        return _validate_requirements(_extract_json(response.text))
+    except Exception as error:  # noqa: BLE001
+        raise _classify_error(error) from error

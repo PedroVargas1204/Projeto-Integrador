@@ -66,12 +66,18 @@ import webview
 
 import aiAnalysis
 import analysisHistory
+import batteryInfo
+import diskCleanup
+import gameCheck
 import hardwareGuide
 import hardwareInfo
 import hardwareMonitoring
 import pcHealth
 import reportExport
 import settingsStore
+import startupItems
+import upgradeSimulator
+import usageJournal
 
 APP_NAME = "Mallard"
 APP_VERSION = "2.0"
@@ -274,6 +280,104 @@ class MallardApi:
         return {"ok": True, "path": path}
 
     # ------------------------------------------------------------------
+    # Simulador de upgrade (regras simples, sem IA)
+    # ------------------------------------------------------------------
+    def get_simulation_options(self):
+        return upgradeSimulator.getOptions(self._current_hardware())
+
+    def simulate_upgrade(self, choice):
+        choice = choice or {}
+        return upgradeSimulator.simulate(
+            self._current_hardware(),
+            ram_gb=choice.get("ram_gb"),
+            ssd_gb=int(choice.get("ssd_gb") or 0),
+            nvme=bool(choice.get("nvme")),
+            gpu_tier=choice.get("gpu_tier"),
+        )
+
+    # ------------------------------------------------------------------
+    # Vai rodar?
+    # ------------------------------------------------------------------
+    def get_game_examples(self):
+        return gameCheck.exampleEntries()
+
+    def check_game(self, query):
+        """Compara um título da lista de referência com o PC. found=False: dá para perguntar ao Gemini."""
+        return gameCheck.check(query, self._current_hardware())
+
+    def ask_game(self, query):
+        """Pergunta ao Gemini os requisitos de um título fora da lista (uma solicitação)."""
+        try:
+            data = aiAnalysis.consultar_requisitos(self._api_key, query)
+        except aiAnalysis.AnalysisError as error:
+            if error.code == "chave_invalida":
+                self._api_key = ""
+            return {"ok": False, "error": error.code, "message": error.message, "retry_seconds": error.retry_seconds}
+        if not data:
+            return {"ok": True, "found": False, "query": str(query or "").strip()}
+        return {"ok": True, **gameCheck.fromRemote(data, self._current_hardware())}
+
+    # ------------------------------------------------------------------
+    # Diário do PC
+    # ------------------------------------------------------------------
+    def get_journal(self, week_offset=0):
+        try:
+            usageJournal.recordSample()  # garante que o "agora" apareça sem esperar o próximo minuto
+        except Exception:  # noqa: BLE001
+            pass
+        return usageJournal.getJournal(week_offset)
+
+    # ------------------------------------------------------------------
+    # Inicialização
+    # ------------------------------------------------------------------
+    def get_startup(self):
+        return startupItems.listItems()
+
+    def set_startup_enabled(self, item_id, enabled):
+        return startupItems.setEnabled(item_id, bool(enabled))
+
+    # ------------------------------------------------------------------
+    # Bateria (só notebooks)
+    # ------------------------------------------------------------------
+    def get_battery(self, refresh=False):
+        return batteryInfo.getBattery(bool(refresh))
+
+    def open_power_settings(self):
+        """Abre a tela de energia e bateria do Windows."""
+        if platform.system() == "Windows":
+            os.startfile("ms-settings:batterysaver")  # noqa: S606 - abre um atalho do próprio Windows
+            return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Limpeza do disco
+    # ------------------------------------------------------------------
+    def scan_cleanup(self):
+        return diskCleanup.scan()
+
+    def start_cleanup(self, keys):
+        diskCleanup.startCleanup(keys)
+        return diskCleanup.status()
+
+    def get_cleanup_status(self):
+        status = diskCleanup.status()
+        if status["phase"] == "done" and not status.get("achievement_checked"):
+            disk = diskCleanup._disk()
+            if disk and disk["percent"] < 80 and status["freed"] > 0:
+                achievements = dict(self._settings.get("achievements", {}))
+                if not achievements.get("ninho"):
+                    achievements["ninho"] = True
+                    self._settings = settingsStore.saveSettings({"achievements": achievements})
+                    status["first_ninho"] = True
+            status["disk"] = disk
+        return status
+
+    def reset_cleanup(self):
+        diskCleanup.resetJob()
+        return diskCleanup.status()
+
+
+    # ------------------------------------------------------------------
     # Preferências e utilidades
     # ------------------------------------------------------------------
     def get_app_info(self):
@@ -302,6 +406,7 @@ class MallardApi:
 
 def run_app():
     api = MallardApi()
+    usageJournal.startSampler()  # o Diário anota enquanto o app estiver aberto
     api._window = webview.create_window(
         APP_NAME,
         resource_path("ui", "index.html"),
